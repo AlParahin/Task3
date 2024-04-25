@@ -6,65 +6,104 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 public class UtilsTest {
-    private static AnyClass realObject;
-    private static AnyClassable proxyObject;
-
-    private int resultCheck;
+    private static FractionTest fraction;
+    private static Fractionable fractionProxy;
 
     @BeforeEach
-    void newObjects() {
-        realObject = new AnyClass();
-        proxyObject = Utils.cache(realObject);
+    void newTestObjects() {
+        fraction = new FractionTest(2, 2);
+        fractionProxy = Utils.cache(fraction);
+        fractionProxy.setNum(fraction.getNum());
+        fractionProxy.setDenum(fraction.getDenum());
     }
 
     @Test
-    @DisplayName("Без кеширования")
-    void testRealMethod() {
-        resultCheck = realObject.doubleValue();
-        resultCheck = realObject.doubleValue();
-        resultCheck = realObject.doubleValue();
-        Assertions.assertEquals(8,resultCheck);
+    @DisplayName("Без кеширования: количество реальных выполнений > 1")
+    void test_1_RealCounter() {
+        fraction.doubleValue();
+        fraction.doubleValue();
+        Assertions.assertEquals(2, fraction.getCounter());
     }
 
     @Test
-    @DisplayName("С кешированием")
-    void testCachedMethod() {
-        resultCheck = proxyObject.doubleValue();
-        resultCheck = proxyObject.doubleValue();
-        resultCheck = proxyObject.doubleValue();
-        Assertions.assertEquals(2,resultCheck);
+    @DisplayName("С кешированием: выполнение 1 раз")
+    void test_2_CachedMethod_1() {
+        fractionProxy.doubleValue();
+        fractionProxy.doubleValue();
+        fractionProxy.doubleValue();
+        Assertions.assertEquals(1, fraction.getCounter());
     }
 
     @Test
-    @DisplayName("С кешированием + Mutator")
-    void testMutatedMethod() {
-        proxyObject.setValue(3);
-        resultCheck = proxyObject.doubleValue();
-        resultCheck = proxyObject.doubleValue();
-        resultCheck = proxyObject.doubleValue();
-        Assertions.assertEquals(6,resultCheck);
-    }
-}
-
-interface AnyClassable {
-    int doubleValue();
-    void setValue(int someInt);
-}
-
-class AnyClass implements AnyClassable{
-    private int someInt;
-    public AnyClass() {
-        this.someInt = 1;
+    @DisplayName("С кешированием 2 операций: 2 выполнения")
+    void test_3_CachedMethod_2() {
+        fractionProxy.toString();
+        fractionProxy.doubleValue();
+        fractionProxy.doubleValue();
+        fractionProxy.toString();
+        fractionProxy.doubleValue();
+        fractionProxy.toString();
+        Assertions.assertEquals(2, fraction.getCounter());
     }
 
-    @Cache
-    public int doubleValue() {
-        this.someInt += this.someInt;
-        return this.someInt;
+    @Test
+    @DisplayName("С кешированием + Mutator: 2 выполнения")
+    void test_4_MutatedMethod() {
+        fractionProxy.doubleValue();
+        fractionProxy.doubleValue();
+        fractionProxy.doubleValue();
+        fractionProxy.setNum(4);
+        fractionProxy.doubleValue();
+        fractionProxy.doubleValue();
+        fractionProxy.doubleValue();
+        Assertions.assertEquals(2, fraction.getCounter());
     }
 
-    @Mutator
-    public void setValue(int someInt) {
-        this.someInt = someInt;
+    @Test
+    @DisplayName("С кешированием + Mutator + обратный Mutator к предыдущему состоянию")
+    void test_5_MutatedMethodResult() {
+        fractionProxy.doubleValue();
+        fractionProxy.doubleValue();
+        fractionProxy.doubleValue();
+        fractionProxy.setNum(4);
+        fractionProxy.doubleValue();
+        fractionProxy.doubleValue();
+        fractionProxy.doubleValue();
+        fractionProxy.setNum(2);
+        fractionProxy.doubleValue();
+        fractionProxy.doubleValue();
+        fractionProxy.doubleValue();
+        Assertions.assertEquals(2, fraction.getCounter());
     }
+
+    @Test
+    @DisplayName("C кэшированием, но с превышением срока кэша для doubleValue(): 3 выполнения")
+    void test_6_LongMethod() throws InterruptedException {
+        fractionProxy.doubleValue();
+        fractionProxy.doubleValue();
+        fractionProxy.toString();
+        Thread.sleep(2000L);
+        fractionProxy.doubleValue();
+        fractionProxy.doubleValue();
+        fractionProxy.toString();
+        Assertions.assertEquals(3, fraction.getCounter());
+    }
+
+    @Test
+    @DisplayName("C кэшированием, но с превышением срока кэша для doubleValue(): 3 выполнения")
+    void test_7_EternalMethod() throws InterruptedException {
+        fractionProxy.doubleValue_0L();
+        fractionProxy.doubleValue_0L();
+        Thread.sleep(10000L);
+        fractionProxy.doubleValue_0L();
+        fractionProxy.doubleValue_0L();
+        Assertions.assertEquals(1, fraction.getCounter());
+    }
+
+    @Test
+    @DisplayName("Исходное состояние: не вызывает кэширования")
+    void test_8_Initial() {
+        Assertions.assertEquals(0, fraction.counter);
+    }
+
 }
